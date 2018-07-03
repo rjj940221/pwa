@@ -9,7 +9,7 @@ todoRouts.route('/add').post((req, res) => {
     const todo = new todoSchema(req.body);
     todo.save()
         .then(todo => {
-            res.json('Server added successfully');
+            res.json({id: todo.id});
         })
         .catch(err => {
             console.log(err);

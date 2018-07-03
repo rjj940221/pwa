@@ -63,14 +63,12 @@ export default class Info extends React.Component {
     }
 
     handleChange(event) {
-        console.log(event);
         const target = event.target;
         const value = target.type === 'checkbox' ? target.checked : target.value;
         const name = target.name;
         const fields = ['title', 'note', 'done'];
 
         if (fields.includes(name)) {
-            console.log(name + ":" + value);
             this.setState({
                 [name]: value
             });
@@ -88,8 +86,7 @@ export default class Info extends React.Component {
             done: this.state.done,
             userId: this.state.userId
         };
-        console.log(JSON.stringify(formData));
-        this.props.addItem(formData);
+        this.props.saveItem(formData);
     }
 
     cancel() {

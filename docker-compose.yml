@@ -4,8 +4,3 @@ services:
     image: mongo:3.2
     ports:
       - 27017:27017
-#  maildev:
-#    image: djfarrelly/maildev
-#    ports:
-#      - '1025:25'
-#      - '1080:80'

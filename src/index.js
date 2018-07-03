@@ -4,7 +4,16 @@ import './index.css';
 import Info from './InfoComponent'
 import {Button, ListGroup, ListGroupItem} from 'react-bootstrap'
 import registerServiceWorker from './registerServiceWorker';
+import idb from 'idb';
 
+const dbPromise = idb.open('toDo', 1, upgradeDB => {
+    if (!upgradeDB.objectStoreNames.contains('addItems')) {
+        upgradeDB.createObjectStore('addItems', {keyPath: 'id'});
+    }
+    if (!upgradeDB.objectStoreNames.contains('updateItems')) {
+        upgradeDB.createObjectStore('updateItems', {keyPath: 'id'});
+    }
+});
 
 function List(props) {
     let items;
@@ -24,6 +33,9 @@ function List(props) {
             <Button bsSize='large' block className='ToDoItem' onClick={props.newItem}>
                 ADD NEW TODO
             </Button>
+            <Button bsSize='large' block className='ToDoItem' onClick={props.refresh}>
+                refresh
+            </Button>
             <div className='ListItems'>
                 <ListGroup>
                     {items}
@@ -34,6 +46,7 @@ function List(props) {
 }
 
 class ToDo extends React.Component {
+
     constructor(props) {
         super(props);
         this.state = {
@@ -45,13 +58,24 @@ class ToDo extends React.Component {
         };
         this.newItem = this.newItem.bind(this);
         this.itemSelected = this.itemSelected.bind(this);
-        this.addItem = this.addItem.bind(this);
+        this.saveItem = this.saveItem.bind(this);
+        this.fetchList = this.fetchList.bind(this);
+
+        if ('serviceWorker' in navigator){
+            console.log('service worker');
+            if ('SyncManager' in window){
+                console.log('sync manager');
+            }
+        }
     }
 
     componentDidMount() {
+        this.fetchList();
+    }
+
+    fetchList() {
         fetch(`/todo/${this.state.userId}`, {method: 'get'})
             .then(response => {
-                console.log(response);
                 return response.json();
             })
             .then(data => this.setState({list: data}));
@@ -93,7 +117,7 @@ class ToDo extends React.Component {
             }));
     }
 
-    addItem(item) {
+    saveItem(item) {
         let list;
         let update;
         if (!item.id) {
@@ -101,17 +125,32 @@ class ToDo extends React.Component {
             id = this.b64Encode(id);
             item.id = id;
             list = this.state.list.concat([item]);
-            console.log("add new item");
-            console.log(item);
-            update = fetch('/todo/add', {
+
+            const req = {
                 method: 'POST',
                 body: JSON.stringify(item),
                 headers: {
+                    'content-type': 'application/json',
                     'user-agent': 'Mozilla/4.0 MDN Example',
-                    'content-type': 'application/json'
                 },
                 mode: 'cors',
-            });
+            };
+
+            if ('serviceWorker' in navigator && 'SyncManager' in window) {
+                console.log('adding data to index db and creating sync');
+                update = dbPromise.then(db => {
+                    const tx = db.transaction('addItems', 'readwrite');
+                    tx.objectStore('addItems').put(item);
+                    return tx.complete;
+                }).then(() => navigator.serviceWorker.ready).then(function (reg) {
+                    return reg.sync.register('add-item-tag');
+                }).catch(function () {
+                    return fetch('/todo/add', req);
+                });
+            } else {
+                update = fetch('/todo/add', req);
+            }
+
 
         } else {
             list = this.state.list.slice();
@@ -119,12 +158,10 @@ class ToDo extends React.Component {
                 return (iterItem.id === item.id)
             });
             list[idx] = item;
-            console.log(item);
             update = fetch(`/todo/update/${item.id}`, {
                 method: 'PUT',
                 body: JSON.stringify(item),
                 headers: {
-                    'user-agent': 'Mozilla/4.0 MDN Example',
                     'content-type': 'application/json'
                 },
                 mode: 'cors',
@@ -147,9 +184,10 @@ class ToDo extends React.Component {
                       list={this.state.list}
                       add={this.add}
                       count={this.state.count}
+                      refresh={this.fetchList}
                 />
                 <Info item={this.state.selected}
-                      addItem={this.addItem}
+                      saveItem={this.saveItem}
                 />
             </div>
         );
