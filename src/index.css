@@ -1,0 +1,61 @@
+body{
+    font-family: Chalkduster, fantasy;
+}
+.pane {
+    display: flex;
+    flex-direction: row;
+    margin: auto;
+    width: 90%;
+    max-width: 90%;
+    border: 3px solid gray;
+    padding: 10px;
+    text-align: center;
+    max-height: 90%;
+    height: 90%;
+}
+
+#root {
+    position: absolute;
+    width: 100%;
+    height: 99%;
+    margin: auto;
+    flex: 1 1 0;
+    display: flex;
+}
+
+.List {
+    margin: auto;
+    text-align: center;
+    max-height: 90%;
+    height: 90%;
+    border: 3px solid gray;
+    width: 40%;
+    max-width: 40%;
+
+}
+.ListItems {
+    height: 90%;
+    max-height: 90%;
+    overflow-y: scroll;
+}
+.Info {
+    margin: auto;
+    text-align: center;
+    max-height: 95%;
+    height: 90%;
+    width: 55%;
+    max-width: 60%;
+    display: flex;
+    flex-direction: column;
+    border: 3px solid gray;
+}
+
+ul {
+    padding: 0 0 0 0;
+    height: 100%;
+    max-height: 100%;
+}
+
+.ToDoItem {
+    font-size: 2vw;
+}
