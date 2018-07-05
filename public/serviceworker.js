@@ -1,7 +1,6 @@
-"use strict";
 self.importScripts('idb.js');
 
-let precacheConfig = [["/index.html", "9505bf13bbf3fa65fc862e5761a6c77f"], ["/static/css/main.d42defb7.css", "35627aa7294a39af423965097c4c5dc8"], ["/static/js/main.bd83bc5e.js", "a753a631bcc029837f625839552fe255"]];
+let precacheConfig = [["/index.html", "474a3b525aaeaf33dc8a6e32db784d77"], ["/static/css/main.d42defb7.css", "35627aa7294a39af423965097c4c5dc8"], ["/static/js/main.51a0d2f3.js", "93649c6b095a6bde7386ebdf044754a8"], ["https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css", ""], ["https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css", ""]];
 
 let cacheName = "sw-precache-v3-sw-precache-webpack-plugin-" + (self.registration ? self.registration.scope : "");
 const ignoreUrlParametersMatching = [/^utm_/];
@@ -162,35 +161,59 @@ self.addEventListener("fetch", function (event) {
     }
 });
 
-//We are adding this one
-self.addEventListener('sync', function (event) {
-    if (event.tag === 'add-item-tag') {
-        event.waitUntil(
-            dbPromise.then(db => {
-                return db.transaction('addItems')
-                    .objectStore('addItems').getAll();
-            }).then(addToDos => {
-                // Post the messages to the server
-                let requests = addToDos.map((toDo) => {
-                    return fetch('/todo/add', {
-                        method: 'POST',
-                        body: JSON.stringify(toDo),
-                        headers: {
-                            'content-type': 'application/json'
-                        },
-                        mode: 'cors',
-                    })
-                });
-                return Promise.all(requests);
-            }).then((sentToDos) => {
-                    // Success! Remove them from the outbox
+let itemsync = function (dataBase, endpoint, method) {
+    return dbPromise.then(db => {
+        return db.transaction(dataBase)
+            .objectStore(dataBase).getAll();
+    }).then(addToDos => {
+        // Post the messages to the server
+        let requests = addToDos.map((toDo) => {
+            return new Promise((resolve, reject) => {
+                let url = endpoint.clone();
+                if(url === '/todo/update'){
+                    url = `/todo/update/${toDo.id}`
+                }
+                fetch(url, {
+                    method: method,
+                    body: JSON.stringify(toDo),
+                    headers: {
+                        'content-type': 'application/json'
+                    },
+                    mode: 'cors',
+                }).then(() => resolve({id: toDo.id}))
+                    .catch(err => reject(err))
+            })
+        });
+        return Promise.all(requests);
+    }).then((sentToDos) => {
+            // Success! Remove them from idb
+            let delets = sentToDos.map((item) => {
+                    console.log(item.id);
                     return dbPromise.then(db => {
-                        const tx = db.transaction('addItems', 'readwrite');
-                        tx.objectStore('addItems').delete(sentToDos.id);
+                        const tx = db.transaction(dataBase, 'readwrite');
+                        tx.objectStore(dataBase).delete(item.id);
                         return tx.complete;
                     })
                 }
-            ));
+            );
+            return Promise.all(delets);
+        }
+    ).catch(err => {
+        console.warn(err);
+        return err;
+    });
+};
+
+//We are adding this one
+self.addEventListener('sync', function (event) {
+    switch(event.tag) {
+        case 'add-item-tag':
+            console.log("add sync event");
+            event.waitUntil(itemsync('addItems', '/todo/add', 'POST'));
+            break;
+        case 'update-item-tag':
+            console.log("update sync event");
+            event.waitUntil(itemsync('updateItems', '/todo/update', 'PUT'));
+            break;
     }
-})
-;
+});

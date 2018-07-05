@@ -33,9 +33,6 @@ function List(props) {
             <Button bsSize='large' block className='ToDoItem' onClick={props.newItem}>
                 ADD NEW TODO
             </Button>
-            <Button bsSize='large' block className='ToDoItem' onClick={props.refresh}>
-                refresh
-            </Button>
             <div className='ListItems'>
                 <ListGroup>
                     {items}
@@ -61,9 +58,9 @@ class ToDo extends React.Component {
         this.saveItem = this.saveItem.bind(this);
         this.fetchList = this.fetchList.bind(this);
 
-        if ('serviceWorker' in navigator){
+        if ('serviceWorker' in navigator) {
             console.log('service worker');
-            if ('SyncManager' in window){
+            if ('SyncManager' in window) {
                 console.log('sync manager');
             }
         }
@@ -117,6 +114,14 @@ class ToDo extends React.Component {
             }));
     }
 
+    itemToIndexDb(table, item) {
+        return dbPromise.then(db => {
+            const tx = db.transaction(table, 'readwrite');
+            tx.objectStore(table).put(item);
+            return tx.complete;
+        })
+    }
+
     saveItem(item) {
         let list;
         let update;
@@ -138,15 +143,12 @@ class ToDo extends React.Component {
 
             if ('serviceWorker' in navigator && 'SyncManager' in window) {
                 console.log('adding data to index db and creating sync');
-                update = dbPromise.then(db => {
-                    const tx = db.transaction('addItems', 'readwrite');
-                    tx.objectStore('addItems').put(item);
-                    return tx.complete;
-                }).then(() => navigator.serviceWorker.ready).then(function (reg) {
-                    return reg.sync.register('add-item-tag');
-                }).catch(function () {
-                    return fetch('/todo/add', req);
-                });
+                update = this.itemToIndexDb('addItems', item)
+                    .then(() => navigator.serviceWorker.ready).then(function (reg) {
+                        return reg.sync.register('add-item-tag');
+                    }).catch(function () {
+                        return fetch('/todo/add', req);
+                    });
             } else {
                 update = fetch('/todo/add', req);
             }
@@ -158,14 +160,30 @@ class ToDo extends React.Component {
                 return (iterItem.id === item.id)
             });
             list[idx] = item;
-            update = fetch(`/todo/update/${item.id}`, {
+
+            const req = {
                 method: 'PUT',
                 body: JSON.stringify(item),
                 headers: {
-                    'content-type': 'application/json'
+                    'content-type': 'application/json',
+                    'user-agent': 'Mozilla/4.0 MDN Example',
                 },
                 mode: 'cors',
-            });
+            };
+
+            if ('serviceWorker' in navigator && 'SyncManager' in window) {
+                console.log('adding data to index db and creating sync');
+                update = this.itemToIndexDb('updateItems', item)
+                    .then(() => navigator.serviceWorker.ready)
+                    .then(function (reg) {
+                        return reg.sync.register('update-item-tag');
+                    }).catch(function () {
+                        return fetch(`/todo/update/${item.id}`, req);
+                    });
+            }
+            else {
+                update = fetch(`/todo/update/${item.id}`, req);
+            }
         }
         update.then(() => {
             this.setState({

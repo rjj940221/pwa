@@ -10,9 +10,7 @@ let todo = new Schema({
     },
     title: {
         type: String,
-        unique: true,
         required: true,
-        dropDups: true
     },
     note: {
         type: String

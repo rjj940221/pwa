@@ -1,7 +1,7 @@
 import React from "react";
 import {Button, Col, ControlLabel, Form, FormControl, FormGroup, PageHeader} from "react-bootstrap";
 
-export default class Info extends React.Component {
+export default class InfoComponent extends React.Component {
     constructor(props, context) {
         super(props, context);
         this.props = props;
@@ -99,12 +99,7 @@ export default class Info extends React.Component {
     }
 
     validToDo() {
-        if (this.state.title &&
-            this.state.title.trim().length > 0 /*&& (
-                this.state.title !== this.props.item.title ||
-                this.state.note !== this.props.item.note ||
-                this.state.done !== this.props.item.done)*/
-        ) {
+        if (this.state.title && this.state.title.trim().length > 0) {
             this.setState({valid: true});
         } else {
             this.setState({valid: false});
